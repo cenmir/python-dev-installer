@@ -1,0 +1,9 @@
+numpy
+sympy
+scipy
+matplotlib
+marimo
+imageio
+pyqt6
+pyqtgraph
+pandas
