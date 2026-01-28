@@ -133,10 +133,10 @@ Pop-Location
 Write-Host "Configuring Marimo dark mode..."
 $marimoConfigPath = Join-Path $env:USERPROFILE ".marimo.toml"
 if (-not (Test-Path $marimoConfigPath)) {
-    @"
-[display]
-theme = "dark"
-"@ | Set-Content $marimoConfigPath -Encoding UTF8
+    # Use ASCII encoding without BOM to avoid TOML parsing issues
+    "[display]`ntheme = `"dark`"" | Set-Content $marimoConfigPath -Encoding ASCII -NoNewline
+    # Add final newline
+    Add-Content $marimoConfigPath ""
     Write-Host "Marimo configured to use dark mode." -ForegroundColor Green
 } else {
     Write-Host "Marimo config already exists, skipping dark mode setup." -ForegroundColor Yellow
