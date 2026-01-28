@@ -2,20 +2,31 @@
 
 This repository contains installation files for installing the Marimo editor used in courses at JTH (School of Engineering, Jönköping University). These installation files will help you set up the Marimo editor on either the JTH computer lab machines or your personal computer running windows.
 
-For Mac or Linux users, please refer to the [Marimo installation guide for Mac/Linux](https://mechanics.ju.se/python_installation.html).
+For Mac or Linux users, please refer to the [Marimo installation guide for Mac/Linux](https://python.ju.se/python_installation.html#manual-python-installation).
 
 ## What the installer does
 
 The installer will:
+- Install Git (and configure your name/email for commits)
+- Install VS Code with context menu integration
 - Install the package manager uv
 - Install the latest version of Python
-- Create a virtual environment at `C:\Users\username\venvs\default`
+- Create a virtual environment at `C:\Users\username\.venvs\default`
 - Install packages, including Marimo, into the virtual environment along with numpy, sympy, matplotlib, pandas, pyqt6, pyqtgraph and scipy. This is configurable using the `requirements.txt` file.
 - Copy the run scripts to a folder in `C:\Users\username\marimo` and put that folder in your user PATH environment variable
 - Create shortcuts to launch Marimo
-- Create a context menu entry to open folders in Marimo (very useful for opening projects!)
+- Create context menu entries for Marimo and VS Code
 
 ## Installation Instructions
+
+### Option 1: One-liner (recommended)
+
+Open PowerShell and run:
+```powershell
+irm https://raw.githubusercontent.com/cenmir/marimo-installer/main/install.ps1 | iex
+```
+
+### Option 2: Manual download
 
 1. Download the repo as a ZIP file and extract it to a folder on your computer.
 2. Open the extracted folder and run the `setup.bat` file by double-clicking it.
@@ -23,10 +34,11 @@ The installer will:
 
 ## Usage
 
-- You can launch Marimo by right-clicking in a folder and selecting "Open in Marimo" or by using the shortcut created on your desktop.
+- You can launch Marimo by right-clicking in a folder and selecting "Open in Marimo" or by using the shortcut in the Start Menu.
 - You can also run Marimo from the command line by typing `m`.
-- You can update Marimo and the installed packages by right-clicking on the `update.ps1` file and selecting "Run with PowerShell".
-- If you want to uninstall Marimo, you can run the `uninstall.ps1` file and selecting "Run with PowerShell".
+- You can open any folder in VS Code by right-clicking and selecting "Open with VS Code".
+- To update Marimo and packages, double-click `update.bat` in `C:\Users\username\marimo`.
+- To uninstall, double-click `uninstall.bat` in `C:\Users\username\marimo`.
 
 
 ### Easy .venv setup for new projects for vs-code users

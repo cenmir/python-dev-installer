@@ -19,8 +19,8 @@ function InstallPackages{
             if (Test-Path $activateScript) {
                 Write-Host "Activating the virtual environment..."
 
-                # Source the activate script to activate the virtual environment
-                # The '&' operator executes the script in the current scope, activating the venv
+                # Run the activate script to set environment variables (PATH, VIRTUAL_ENV)
+                # Note: '&' runs in child scope, but $env: variables persist process-wide
                 & $activateScript
 
                 # Now that the venv is activated, uv should be in the PATH
