@@ -54,7 +54,23 @@ function InstallPackages{
 function CreateDefaultVenv{
 
     $VenvPath = Join-Path $env:USERPROFILE ".venvs\default"
-    Write-Host "Attempting to create virtual environment at: $VenvPath" -ForegroundColor Cyan
+
+    # Check if venv already exists
+    if (Test-Path $VenvPath) {
+        Write-Host ""
+        Write-Host "Virtual environment already exists at: $VenvPath" -ForegroundColor Yellow
+        Write-Host "Recreating it will DELETE all installed packages and reset to defaults."
+        Write-Host ""
+        $response = Read-Host "Do you want to recreate the virtual environment? (y/N)"
+        if ($response -notmatch '^[Yy]') {
+            Write-Host "Keeping existing virtual environment." -ForegroundColor Green
+            return $true  # Return true so packages still get installed/updated
+        }
+        Write-Host "Recreating virtual environment..." -ForegroundColor Yellow
+    } else {
+        Write-Host "Creating virtual environment at: $VenvPath" -ForegroundColor Cyan
+    }
+
     try {
         # Create the venv. uv will create parent directories if they don't exist.
         uv venv --clear $VenvPath
