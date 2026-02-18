@@ -73,7 +73,7 @@ function CreateDefaultVenv{
 
     try {
         # Create the venv. uv will create parent directories if they don't exist.
-        uv venv --clear $VenvPath
+        uv venv --clear --python 3.13 $VenvPath
         if ($LASTEXITCODE -eq 0) {
             Write-Host "Virtual environment created successfully at: $VenvPath" -ForegroundColor Green
             return $true

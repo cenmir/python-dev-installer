@@ -50,8 +50,8 @@ echo 'uv' installed successfully.
 
 :install_python
 echo.
-echo [2/3] Ensuring Python is available via uv...
-uv python install
+echo [2/3] Ensuring Python 3.13 is available via uv...
+uv python install 3.13
 if %errorlevel% neq 0 (
     echo ERROR: Failed to install or find a suitable Python version using 'uv'.
     goto :error
@@ -62,7 +62,7 @@ echo Python is available.
 echo.
 echo [3/3] Creating virtual environment and installing packages...
 
-uv venv .venv --clear --seed
+uv venv .venv --clear --seed --python 3.13
 if %errorlevel% neq 0 (
     echo ERROR: Failed to create the virtual environment.
     goto :error

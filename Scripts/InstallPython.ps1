@@ -59,18 +59,18 @@ function Test-AndInstallUv {
 }
 
 function Install-LatestPythonWithUv {
-    Write-Host "Attempting to install the latest Python version using uv..." -ForegroundColor Cyan
+    Write-Host "Attempting to install Python 3.13 using uv..." -ForegroundColor Cyan
 
-    Write-Host "Running: uv python install --default --preview"
+    Write-Host "Running: uv python install 3.13 --default"
     # Run uv and capture exit code (don't use 2>&1 as it creates ErrorRecords that throw with $ErrorActionPreference=Stop)
-    uv python install --default --preview
+    uv python install 3.13 --default
     $uvExitCode = $LASTEXITCODE
 
     if ($uvExitCode -eq 0) {
-        Write-Host "Successfully installed Python using uv." -ForegroundColor Green
+        Write-Host "Successfully installed Python 3.13 using uv." -ForegroundColor Green
 
         # Use uv python find to get the actual Python path (avoids Windows Store stub)
-        $pythonPath = (uv python find 2>$null)
+        $pythonPath = (uv python find 3.13 2>$null)
         if ($pythonPath -and (Test-Path $pythonPath)) {
             Write-Host "Python installed at: $pythonPath" -ForegroundColor Green
             $pythonVersion = & $pythonPath --version
