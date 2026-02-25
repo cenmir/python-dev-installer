@@ -76,7 +76,13 @@ function Install-TinyTeXFromGitHub {
         if (Test-Path $installDir) {
             Remove-Item $installDir -Recurse -Force
         }
-        Expand-Archive -Path $zipPath -DestinationPath $env:APPDATA -Force
+        # Use tar.exe (built into Windows 10+) — much faster than Expand-Archive
+        $tarExe = Get-Command tar.exe -ErrorAction SilentlyContinue
+        if ($tarExe) {
+            & tar.exe -xf $zipPath -C $env:APPDATA
+        } else {
+            Expand-Archive -Path $zipPath -DestinationPath $env:APPDATA -Force
+        }
 
         # Clean up ZIP
         Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
