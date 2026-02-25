@@ -41,7 +41,32 @@ function Install-TinyTeXFromGitHub {
         $installDir = "$env:APPDATA\TinyTeX"
 
         Write-Host "Downloading $($asset.name) ..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
+
+        # Download with progress bar using chunked .NET stream
+        $request = [System.Net.HttpWebRequest]::Create($downloadUrl)
+        $request.AllowAutoRedirect = $true
+        $response = $request.GetResponse()
+        $totalBytes = $response.ContentLength
+        $stream = $response.GetResponseStream()
+        $fileStream = [System.IO.File]::Create($zipPath)
+        $buffer = New-Object byte[] 65536
+        $totalRead = 0
+
+        while (($bytesRead = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $fileStream.Write($buffer, 0, $bytesRead)
+            $totalRead += $bytesRead
+            if ($totalBytes -gt 0) {
+                $pct = [int](($totalRead / $totalBytes) * 100)
+                $mbRead = [math]::Round($totalRead / 1MB, 1)
+                $mbTotal = [math]::Round($totalBytes / 1MB, 1)
+                Write-Progress -Activity "Downloading TinyTeX" -Status "${mbRead} MB / ${mbTotal} MB" -PercentComplete $pct
+            }
+        }
+
+        $fileStream.Close()
+        $stream.Close()
+        $response.Close()
+        Write-Progress -Activity "Downloading TinyTeX" -Completed
 
         Write-Host "Extracting to $installDir ..." -ForegroundColor Cyan
         if (Test-Path $installDir) {
