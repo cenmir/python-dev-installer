@@ -49,17 +49,21 @@ function Install-TinyTeXFromGitHub {
         $totalBytes = $response.ContentLength
         $stream = $response.GetResponseStream()
         $fileStream = [System.IO.File]::Create($zipPath)
-        $buffer = New-Object byte[] 65536
+        $buffer = New-Object byte[] 262144
         $totalRead = 0
+        $lastPct = -1
 
         while (($bytesRead = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
             $fileStream.Write($buffer, 0, $bytesRead)
             $totalRead += $bytesRead
             if ($totalBytes -gt 0) {
                 $pct = [int](($totalRead / $totalBytes) * 100)
-                $mbRead = [math]::Round($totalRead / 1MB, 1)
-                $mbTotal = [math]::Round($totalBytes / 1MB, 1)
-                Write-Progress -Activity "Downloading TinyTeX" -Status "${mbRead} MB / ${mbTotal} MB" -PercentComplete $pct
+                if ($pct -ne $lastPct) {
+                    $mbRead = [math]::Round($totalRead / 1MB, 1)
+                    $mbTotal = [math]::Round($totalBytes / 1MB, 1)
+                    Write-Progress -Activity "Downloading TinyTeX" -Status "${mbRead} MB / ${mbTotal} MB" -PercentComplete $pct
+                    $lastPct = $pct
+                }
             }
         }
 
