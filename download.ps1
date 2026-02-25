@@ -40,8 +40,6 @@ try {
 
     Write-Host ""
     Write-Host "Installation finished." -ForegroundColor Green
-    Write-Host "You can now find Marimo in your Start Menu."
-    Write-Host "NOTE: You may need to sign out and back in for the context menu changes to appear everywhere."
 }
 catch {
     Write-Host ""

@@ -387,4 +387,9 @@ if ($winChoices[3]) {
     }
 }
 
-Write-Host "Setup complete."
+Write-Host ""
+Write-Host "Setup complete." -ForegroundColor Green
+if ($choices[6]) {
+    Write-Host "You can now find Marimo in your Start Menu."
+    Write-Host "NOTE: You may need to sign out and back in for the context menu changes to appear everywhere."
+}
