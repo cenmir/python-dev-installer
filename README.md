@@ -1,6 +1,6 @@
 # Mechanical Engineering Python Development Setup
 
-This repository contains installation files for setting up a Python development environment for Mechanical Engineering courses at JTH (School of Engineering, Jönköping University). It installs Git, VS Code, Quarto, Python, and the Marimo notebook editor on Windows.
+This repository contains installation files for setting up a Python development environment for Mechanical Engineering courses at JTH (School of Engineering, Jönköping University). It installs Git, VS Code, Quarto, TinyTeX, Python, and the Marimo notebook editor on Windows. An interactive menu lets you select which components to install.
 
 For Mac or Linux users, please refer to the [Marimo installation guide for Mac/Linux](https://python.ju.se/python_installation.html#manual-python-installation).
 
@@ -31,6 +31,7 @@ irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/install.p
 - **Git** - Version control (prompts for name/email configuration)
 - **VS Code** - Code editor with context menu integration
 - **Quarto** - Scientific and technical publishing
+- **TinyTeX** - LaTeX distribution for PDF rendering
 - **uv** - Fast Python package manager
 - **Python** - Latest version via uv
 

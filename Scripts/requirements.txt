@@ -8,4 +8,6 @@ pyqt6
 pyqtgraph
 pandas
 ipykernel
+nbformat
+nbclient
 MechanicsKit @ git+https://github.com/cenmir/MechanicsKit.git
