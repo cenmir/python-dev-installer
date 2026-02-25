@@ -38,7 +38,13 @@ function Show-InstallMenu {
     $maxLines = $MenuItems.Count + $(if ($hasSubmenu) { $SubItems.Count } else { 0 })
 
     [Console]::CursorVisible = $false
-    $startPos = $Host.UI.RawUI.CursorPosition
+
+    # Reserve space in the console to prevent scrolling from invalidating cursor position
+    $totalLines = $maxLines + 2  # menu items + blank line + help text
+    for ($i = 0; $i -lt $totalLines; $i++) { Write-Host "" }
+    # Now calculate start position from where the cursor ended up (scroll-safe)
+    $curPos = $Host.UI.RawUI.CursorPosition
+    $startPos = New-Object System.Management.Automation.Host.Coordinates(0, ($curPos.Y - $totalLines))
 
     while ($true) {
         # Total visible items
