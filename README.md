@@ -1,6 +1,6 @@
 # Mechanical Engineering Python Development Setup
 
-This repository contains installation files for setting up a Python development environment for Mechanical Engineering courses at JTH (School of Engineering, Jonkoping University). It installs Git, VS Code, Quarto, TinyTeX, Python, and the Marimo notebook editor on Windows. An interactive menu lets you select which components to install.
+This repository contains installation files for setting up a Python development environment for Mechanical Engineering courses at JTH (School of Engineering, Jonkoping University). It installs Git, VS Code, Quarto, TinyTeX, FFmpeg, Python, and the Marimo notebook editor on Windows. An interactive menu lets you select which components to install.
 
 For Mac or Linux users, please refer to the [Marimo installation guide for Mac/Linux](https://python.ju.se/python_installation.html#manual-python-installation).
 
@@ -32,6 +32,7 @@ irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/download.
 - **VS Code** - Code editor with Python and Jupyter extensions, context menu integration
 - **Quarto** - Scientific and technical publishing
 - **TinyTeX** - LaTeX distribution for PDF rendering
+- **FFmpeg** - Audio/video processing toolkit
 - **uv + Python** - Fast package manager and Python 3.13
 
 ### Python Environment
@@ -81,6 +82,7 @@ Copy `Scripts/init.bat` to your project folder and double-click it. This creates
 | `InstallVSCode.ps1` | Installs VS Code via winget, adds extensions and context menus |
 | `InstallQuarto.ps1` | Installs Quarto via winget |
 | `InstallTinyTeX.ps1` | Detects any LaTeX distro, installs TinyTeX if none found |
+| `InstallFFmpeg.ps1` | Installs FFmpeg via winget |
 | `InstallPython.ps1` | Installs uv and Python 3.13 |
 | `createDefaultVenvAndInstallPackages.ps1` | Creates `~\.venvs\default` and installs packages from `requirements.txt` |
 

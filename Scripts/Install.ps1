@@ -189,6 +189,7 @@ $menuItems = @(
     "VS Code with Python and Jupyter extensions"
     "Quarto (scientific publishing)"
     "TinyTeX (LaTeX for PDF rendering)"
+    "FFmpeg (audio/video processing)"
     "uv and Python"
     "Virtual environment and packages"
     "Marimo files, shortcuts and context menus"
@@ -203,7 +204,7 @@ $winSubItems = @(
     "Classic context menu (Windows 11)"
 )
 
-$result = Show-InstallMenu $menuItems -ExpandableIndex 8 -SubItems $winSubItems
+$result = Show-InstallMenu $menuItems -ExpandableIndex 9 -SubItems $winSubItems
 $choices = $result.Selected
 $winChoices = $result.SubSelected
 
@@ -231,20 +232,26 @@ if ($choices[3]) {
     & "$SourceDir\InstallTinyTeX.ps1"
 }
 
-# 5. Install uv and Python
+# 5. Install FFmpeg
 if ($choices[4]) {
+    Write-Host "Installing FFmpeg..."
+    & "$SourceDir\InstallFFmpeg.ps1"
+}
+
+# 6. Install uv and Python
+if ($choices[5]) {
     Write-Host "Installing Python..."
     & "$SourceDir\InstallPython.ps1"
 }
 
-# 6. Create default venv and install packages
-if ($choices[5]) {
+# 7. Create default venv and install packages
+if ($choices[6]) {
     Write-Host "Creating virtual environment and installing packages..."
     & "$SourceDir\createDefaultVenvAndInstallPackages.ps1"
 }
 
-# 7. Marimo files, shortcuts and context menus
-if ($choices[6]) {
+# 8. Marimo files, shortcuts and context menus
+if ($choices[7]) {
     Write-Host "Setting up installation directory and shortcuts..."
 
     # Create installation directory and copy files
@@ -322,8 +329,8 @@ if ($choices[6]) {
     Pop-Location
 }
 
-# 8. Configure Marimo dark mode
-if ($choices[7]) {
+# 9. Configure Marimo dark mode
+if ($choices[8]) {
     Write-Host "Configuring Marimo dark mode..."
     $marimoConfigPath = Join-Path $env:USERPROFILE ".marimo.toml"
     if (-not (Test-Path $marimoConfigPath)) {
@@ -337,7 +344,7 @@ if ($choices[7]) {
     }
 }
 
-# 9. Windows configuration
+# 10. Windows configuration
 # Windows Terminal
 if ($winChoices[0]) {
     $wt = Get-Command wt.exe -ErrorAction SilentlyContinue
@@ -389,7 +396,7 @@ if ($winChoices[3]) {
 
 Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
-if ($choices[6]) {
+if ($choices[7]) {
     Write-Host "You can now find Marimo in your Start Menu."
     Write-Host "NOTE: You may need to sign out and back in for the context menu changes to appear everywhere."
 }
