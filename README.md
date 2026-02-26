@@ -48,6 +48,7 @@ irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/download.
 
 ### Windows Configuration (submenu)
 - Install Windows Terminal (if not present)
+- Pin user profile folder to Quick Access
 - Show hidden files and folders
 - Show file extensions
 - Enable classic context menu (removes Windows 11 "Show more options")
@@ -57,7 +58,8 @@ irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/download.
 - **Launch Marimo**: Right-click in a folder > "Open in Marimo", or Start Menu, or type `m` in the terminal
 - **Open in VS Code**: Right-click on any folder > "Open with VS Code"
 - **Update**: Double-click `update.bat` in `~\marimo`, or use the Start Menu shortcut
-- **Uninstall**: Double-click `uninstall.bat` in `~\marimo`, or use the Start Menu shortcut
+- **Repair**: Double-click `repair.bat` in `~\marimo` to fix broken venvs, VS Code, PATH, context menus, or shortcuts
+- **Uninstall**: Double-click `uninstall.bat` in `~\marimo`, or use the Start Menu shortcut (removes everything)
 
 ## Project-specific Virtual Environments
 
@@ -103,7 +105,8 @@ Copy `Scripts/init.bat` to your project folder and double-click it. This creates
 | `update.ps1` / `update.bat` | Updates Python packages in the default venv |
 | `updateScripts.ps1` | Downloads latest scripts from GitHub |
 | `checkUpdate.ps1` | Checks if a newer version is available |
-| `uninstall.ps1` / `uninstall.bat` | Removes registry keys, shortcuts, venv, PATH entry, install dir |
+| `repair.ps1` / `repair.bat` | Fixes broken venvs, VS Code, PATH entries, context menus, shortcuts |
+| `uninstall.ps1` / `uninstall.bat` | Full uninstaller: removes all tools, data, registry keys, and PATH entries |
 
 ### Scripts/ - Configuration
 
