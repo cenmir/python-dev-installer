@@ -199,6 +199,7 @@ $menuItems = @(
 
 $winSubItems = @(
     "Install Windows Terminal"
+    "Pin user profile folder to Quick Access"
     "Show hidden files and folders"
     "Show file extensions"
     "Classic context menu (Windows 11)"
@@ -366,22 +367,37 @@ if ($winChoices[0]) {
     }
 }
 
+# Pin user profile folder to Quick Access
+if ($winChoices[1]) {
+    Write-Host "Pinning user profile folder to Quick Access..." -ForegroundColor Cyan
+    try {
+        $shell = New-Object -ComObject Shell.Application
+        $folder = $shell.NameSpace($env:USERPROFILE)
+        $folder.Self.InvokeVerb("pintohome")
+        Write-Host "User profile folder pinned to Quick Access." -ForegroundColor Green
+        Write-Host "TIP: You can drag it to the top of Quick Access in File Explorer." -ForegroundColor Yellow
+    }
+    catch {
+        Write-Warning "Could not pin folder to Quick Access: $($_.Exception.Message)"
+    }
+}
+
 $explorerKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
 
 # Show hidden files
-if ($winChoices[1]) {
+if ($winChoices[2]) {
     Set-ItemProperty -Path $explorerKey -Name "Hidden" -Value 1
     Write-Host "Hidden files and folders are now visible." -ForegroundColor Green
 }
 
 # Show file extensions
-if ($winChoices[2]) {
+if ($winChoices[3]) {
     Set-ItemProperty -Path $explorerKey -Name "HideFileExt" -Value 0
     Write-Host "File extensions are now visible." -ForegroundColor Green
 }
 
 # Classic context menu
-if ($winChoices[3]) {
+if ($winChoices[4]) {
     Write-Host "Enabling classic context menu (Windows 11)..."
     $classicMenuKey = "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"
     try {
