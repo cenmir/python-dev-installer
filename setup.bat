@@ -18,7 +18,5 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo Installation finished.
-echo You can now find Marimo in your Start Menu.
-echo NOTE: You may need to sign out and back in for the context menu changes to appear everywhere.
 echo.
 pause

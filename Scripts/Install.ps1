@@ -27,11 +27,16 @@ function Show-InstallMenu {
     param(
         [string[]]$MenuItems,
         [int]$ExpandableIndex = -1,
-        [string[]]$SubItems = @()
+        [string[]]$SubItems = @(),
+        [bool[]]$SubDefaults = @()
     )
 
     $selected = [bool[]](@($true) * $MenuItems.Count)
-    $subSelected = [bool[]](@($true) * $SubItems.Count)
+    $subSelected = if ($SubDefaults.Count -eq $SubItems.Count) {
+        [bool[]]$SubDefaults.Clone()
+    } else {
+        [bool[]](@($true) * $SubItems.Count)
+    }
     $isExpanded = $false
     $pos = 0
     $hasSubmenu = ($ExpandableIndex -ge 0 -and $SubItems.Count -gt 0)
@@ -203,9 +208,13 @@ $winSubItems = @(
     "Show hidden files and folders"
     "Show file extensions"
     "Classic context menu (Windows 11)"
+    "Re-register VS Code context menu"
+    "Install WSL with Ubuntu"
 )
 
-$result = Show-InstallMenu $menuItems -ExpandableIndex 9 -SubItems $winSubItems
+$winSubDefaults = @($true, $true, $true, $true, $true, $false, $false)
+
+$result = Show-InstallMenu $menuItems -ExpandableIndex 9 -SubItems $winSubItems -SubDefaults $winSubDefaults
 $choices = $result.Selected
 $winChoices = $result.SubSelected
 
@@ -410,9 +419,30 @@ if ($winChoices[4]) {
     }
 }
 
+# Re-register VS Code context menu
+if ($winChoices[5]) {
+    Write-Host "Re-registering VS Code context menu entries..." -ForegroundColor Cyan
+    . "$SourceDir\InstallVSCode.ps1"
+    Add-VSCodeContextMenu
+}
+
+# Install WSL with Ubuntu
+if ($winChoices[6]) {
+    Write-Host "Installing WSL with Ubuntu..." -ForegroundColor Cyan
+    try {
+        wsl --install -d Ubuntu --no-launch
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "WSL with Ubuntu installed. You may need to restart your computer to complete setup." -ForegroundColor Green
+            Write-Host "After restart, open Ubuntu from the Start Menu to finish initial configuration." -ForegroundColor Yellow
+        } else {
+            Write-Warning "WSL installation returned exit code $LASTEXITCODE. You may need to restart and try again."
+        }
+    }
+    catch {
+        Write-Warning "Could not install WSL: $($_.Exception.Message)"
+        Write-Host "You can install it manually by running: wsl --install -d Ubuntu" -ForegroundColor Yellow
+    }
+}
+
 Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
-if ($choices[7]) {
-    Write-Host "You can now find Marimo in your Start Menu."
-    Write-Host "NOTE: You may need to sign out and back in for the context menu changes to appear everywhere."
-}
