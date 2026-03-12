@@ -184,7 +184,7 @@ Write-Host "Mechanical Engineering Python Development Setup"         -Foreground
 Write-Host "--------------------------------------------------------" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "By Mirza Cenanovic"                                      -ForegroundColor Cyan
-Write-Host "26 February 2026"
+Write-Host "12 March 2026"
 Write-Host ""
 Write-Host "Select components to install:"                           -ForegroundColor Cyan
 Write-Host ""
