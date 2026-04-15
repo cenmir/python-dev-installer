@@ -83,6 +83,14 @@ Remove-DirIfExists "$env:USERPROFILE\.venvs\default" "default virtual environmen
 Remove-DirIfExists "$env:LOCALAPPDATA\FFmpeg" "FFmpeg"
 Remove-FromUserPath "$env:LOCALAPPDATA\FFmpeg\bin"
 
+# MinGit (portable Git)
+Remove-DirIfExists "$env:LOCALAPPDATA\MinGit" "MinGit"
+Remove-FromUserPath "$env:LOCALAPPDATA\MinGit\cmd"
+
+# Quarto (portable)
+Remove-DirIfExists "$env:LOCALAPPDATA\Quarto" "Quarto"
+Remove-FromUserPath "$env:LOCALAPPDATA\Quarto\bin"
+
 # TinyTeX
 Remove-DirIfExists "$env:APPDATA\TinyTeX" "TinyTeX"
 Remove-FromUserPath "$env:APPDATA\TinyTeX\bin\windows"

@@ -30,14 +30,14 @@ function Install-TinyTeXFromGitHub {
         $release = Invoke-RestMethod -Uri $releasesApi -UseBasicParsing
         $ProgressPreference = 'Continue'
 
-        $asset = $release.assets | Where-Object { $_.name -match '^TinyTeX-1-.*\.zip$' } | Select-Object -First 1
+        $asset = $release.assets | Where-Object { $_.name -match '^TinyTeX-1-windows-.*\.exe$' } | Select-Object -First 1
         if (-not $asset) {
-            Write-Error "Could not find TinyTeX-1 ZIP in the latest release."
+            Write-Error "Could not find TinyTeX-1 Windows installer in the latest release."
             return $false
         }
 
         $downloadUrl = $asset.browser_download_url
-        $zipPath = Join-Path $env:TEMP "TinyTeX-1.zip"
+        $exePath = Join-Path $env:TEMP $asset.name
         $installDir = "$env:APPDATA\TinyTeX"
 
         Write-Host "Downloading $($asset.name) ..." -ForegroundColor Cyan
@@ -48,7 +48,7 @@ function Install-TinyTeXFromGitHub {
         $response = $request.GetResponse()
         $totalBytes = $response.ContentLength
         $stream = $response.GetResponseStream()
-        $fileStream = [System.IO.File]::Create($zipPath)
+        $fileStream = [System.IO.File]::Create($exePath)
         $buffer = New-Object byte[] 262144
         $totalRead = 0
         $lastPct = -1
@@ -72,20 +72,20 @@ function Install-TinyTeXFromGitHub {
         $response.Close()
         Write-Progress -Activity "Downloading TinyTeX" -Completed
 
-        Write-Host "Extracting to $installDir ..." -ForegroundColor Cyan
+        Write-Host "Installing to $installDir ..." -ForegroundColor Cyan
         if (Test-Path $installDir) {
             Remove-Item $installDir -Recurse -Force
         }
-        # Use tar.exe (built into Windows 10+) — much faster than Expand-Archive
-        $tarExe = Get-Command tar.exe -ErrorAction SilentlyContinue
-        if ($tarExe) {
-            & tar.exe -xf $zipPath -C $env:APPDATA
-        } else {
-            Expand-Archive -Path $zipPath -DestinationPath $env:APPDATA -Force
+
+        # The .exe is a 7-Zip self-extracting archive that installs silently
+        # to %APPDATA%\TinyTeX. No admin rights required.
+        $proc = Start-Process -FilePath $exePath -Wait -PassThru -WindowStyle Hidden
+        if ($proc.ExitCode -ne 0) {
+            Write-Error "TinyTeX installer exited with code $($proc.ExitCode)."
+            return $false
         }
 
-        # Clean up ZIP
-        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+        Remove-Item $exePath -Force -ErrorAction SilentlyContinue
 
         # Add TinyTeX bin to user PATH
         $binDir = "$installDir\bin\windows"
@@ -126,8 +126,8 @@ function Show-ManualTinyTeXInstallInstructions {
     Write-Host "Please install TinyTeX manually:"
     Write-Host ""
     Write-Host "  1. Go to: https://github.com/rstudio/tinytex-releases/releases" -ForegroundColor Cyan
-    Write-Host "  2. Download TinyTeX-1-*.zip for Windows"
-    Write-Host "  3. Extract to %APPDATA%\TinyTeX"
+    Write-Host "  2. Download TinyTeX-1-windows-*.exe"
+    Write-Host "  3. Run it (installs silently to %APPDATA%\TinyTeX)"
     Write-Host "  4. Add %APPDATA%\TinyTeX\bin\windows to your PATH"
     Write-Host "  5. Restart this installer after TinyTeX is installed"
     Write-Host ""
