@@ -1,3 +1,38 @@
+function Install-Requirements {
+    # Installs requirements.txt into the active venv and reports uv's result.
+    # A git+https line needs git on PATH; without git we install the same
+    # repository's main branch as a GitHub zip archive instead, so one missing
+    # tool does not stop every other package from installing.
+    param(
+        [Parameter(Mandatory)][string]$RequirementsFile,
+        [switch]$Upgrade
+    )
+
+    $reqs = $RequirementsFile
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        $lines = Get-Content $RequirementsFile
+        if ($lines -match 'git\+https://github\.com/') {
+            Write-Host "Git not found; installing GitHub packages from zip archives instead." -ForegroundColor Yellow
+            $reqs = Join-Path $env:TEMP "requirements-nogit.txt"
+            $lines -replace 'git\+(https://github\.com/[^/\s]+/[^/\s]+?)(\.git)?$', '$1/archive/refs/heads/main.zip' |
+                Set-Content $reqs -Encoding ASCII
+        }
+    }
+
+    if ($Upgrade) {
+        uv pip install --upgrade -r $reqs
+    } else {
+        uv pip install -r $reqs
+    }
+    $code = $LASTEXITCODE
+    if ($code -eq 0) {
+        Write-Host "Packages installed successfully." -ForegroundColor Green
+        return $true
+    }
+    Write-Host "Package installation failed (uv exit code $code). See the messages above." -ForegroundColor Red
+    return $false
+}
+
 function InstallPackages{
     # Define the path for the virtual environment
     $venvPath = Join-Path $env:USERPROFILE ".venvs\default"
@@ -25,10 +60,7 @@ function InstallPackages{
 
                 # Now that the venv is activated, uv should be in the PATH
                 Write-Host "Installing packages from '$requirementsFile'..."
-                uv pip install -r $requirementsFile
-
-                Write-Host "Packages installed successfully." -ForegroundColor Green
-                return $true
+                return (Install-Requirements -RequirementsFile $requirementsFile)
 
                 # Optional: Deactivate the environment if you want to return to the global environment
                 # Write-Host "Deactivating the virtual environment..."
@@ -46,7 +78,7 @@ function InstallPackages{
 
     } catch {
         # Catch any errors that occur during the script execution.
-        Write-Error "An error occurred during setup: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "An error occurred during setup: $($_.Exception.Message)" -ForegroundColor Red
         return $false
     }
 }

@@ -99,9 +99,9 @@ function Download-AndExtractFFmpeg {
 
 function Show-ManualFFmpegInstallInstructions {
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host "MANUAL FFMPEG INSTALLATION REQUIRED" -ForegroundColor Yellow
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Please install FFmpeg manually:"
     Write-Host ""
@@ -111,7 +111,7 @@ function Show-ManualFFmpegInstallInstructions {
     Write-Host "  4. Add the 'bin' folder to your PATH"
     Write-Host "  5. Restart this installer after FFmpeg is installed"
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
 }
 
 function Install-FFmpeg {

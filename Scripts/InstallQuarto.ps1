@@ -14,28 +14,59 @@ function Refresh-PathEnvironment {
     $env:PATH = "$userPath;$machinePath"
 }
 
+function Get-LatestReleaseTag {
+    # github.com/<repo>/releases/latest redirects to .../releases/tag/<tag>.
+    # Used when the GitHub API refuses: it allows 60 unauthenticated requests
+    # per hour per IP address, which a classroom on one university address
+    # runs through.
+    param([string]$Repo)
+    $request = [System.Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
+    $request.AllowAutoRedirect = $false
+    $response = $request.GetResponse()
+    $location = $response.Headers["Location"]
+    $response.Close()
+    if ($location -notmatch '/tag/([^/]+)$') {
+        throw "Could not determine the latest release of $Repo."
+    }
+    return $Matches[1]
+}
+
 function Get-QuartoDownloadUrl {
     # Query GitHub API for the latest quarto-cli release and pick the
     # 64-bit Windows portable zip (not the .msi).
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/quarto-dev/quarto-cli/releases/latest" -UseBasicParsing
-
-    $asset = $release.assets | Where-Object {
-        $_.name -like "quarto-*-win.zip"
-    } | Select-Object -First 1
-
-    if (-not $asset) {
-        throw "Could not find a Quarto Windows zip asset in the latest quarto-cli release."
+    # Add TLS 1.2, and TLS 1.3 where Windows has it (Windows 11, build 22000+);
+    # mechanics.ju.se accepts only TLS 1.3. Adding keeps what is already allowed.
+    $tls = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    if ([Environment]::OSVersion.Version.Build -ge 22000) { $tls = $tls -bor [Net.SecurityProtocolType]::Tls13 }
+    [Net.ServicePointManager]::SecurityProtocol = $tls
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/quarto-dev/quarto-cli/releases/latest" -UseBasicParsing
+        $asset = $release.assets | Where-Object {
+            $_.name -like "quarto-*-win.zip"
+        } | Select-Object -First 1
+        if ($asset) { return $asset.browser_download_url }
+    }
+    catch {
+        Write-Host "GitHub API unavailable ($($_.Exception.Message)); reading the release tag instead." -ForegroundColor Yellow
     }
 
-    return $asset.browser_download_url
+    $tag = Get-LatestReleaseTag -Repo "quarto-dev/quarto-cli"
+    if ($tag -notmatch '^v([0-9].*)$') {
+        throw "Unexpected Quarto tag: $tag"
+    }
+    $version = $Matches[1]
+    return "https://github.com/quarto-dev/quarto-cli/releases/download/v$version/quarto-$version-win.zip"
 }
 
 function Download-AndExtractQuarto {
-    param([string]$DownloadUrl)
+    param(
+        [string]$DownloadUrl,
+        [string]$InstallDir = "$env:LOCALAPPDATA\Quarto",
+        [switch]$NoPath
+    )
 
     $zipPath = Join-Path $env:TEMP "quarto-download.zip"
-    $installDir = "$env:LOCALAPPDATA\Quarto"
+    $installDir = $InstallDir
 
     $request = [System.Net.HttpWebRequest]::Create($DownloadUrl)
     $request.AllowAutoRedirect = $true
@@ -71,35 +102,37 @@ function Download-AndExtractQuarto {
         Remove-Item $installDir -Recurse -Force
     }
 
-    # Extract to a temp folder first — the zip contains a versioned root
-    # folder (quarto-X.Y.Z/) that we strip before moving to $installDir.
-    $extractTemp = Join-Path $env:TEMP "quarto-extract"
-    if (Test-Path $extractTemp) {
-        Remove-Item $extractTemp -Recurse -Force
-    }
+    # The quarto-X.Y.Z-win.zip has bin\ and share\ at its root, with no
+    # versioned folder, so we extract straight into $installDir. Should a
+    # future release wrap them in one folder, we lift its contents up.
+    New-Item -Path $installDir -ItemType Directory -Force | Out-Null
 
     $tarExe = Get-Command tar.exe -ErrorAction SilentlyContinue
     if ($tarExe) {
-        New-Item -Path $extractTemp -ItemType Directory | Out-Null
-        & tar.exe -xf $zipPath -C $extractTemp
+        & tar.exe -xf $zipPath -C $installDir
+        if ($LASTEXITCODE -ne 0) { throw "tar.exe could not extract $zipPath" }
     } else {
-        Expand-Archive -Path $zipPath -DestinationPath $extractTemp -Force
+        Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
     }
 
-    $innerFolder = Get-ChildItem -Path $extractTemp -Directory | Select-Object -First 1
-    if ($innerFolder) {
-        Move-Item -Path $innerFolder.FullName -Destination $installDir -Force
-    } else {
-        Move-Item -Path $extractTemp -Destination $installDir -Force
+    if (-not (Test-Path (Join-Path $installDir "bin\quarto.exe"))) {
+        $inner = Get-ChildItem -Path $installDir -Directory |
+            Where-Object { Test-Path (Join-Path $_.FullName "bin\quarto.exe") } |
+            Select-Object -First 1
+        if ($inner) {
+            Get-ChildItem -Path $inner.FullName -Force | Move-Item -Destination $installDir -Force
+            Remove-Item $inner.FullName -Recurse -Force
+        }
     }
 
     Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-    Remove-Item $extractTemp -Recurse -Force -ErrorAction SilentlyContinue
 
     $binDir = Join-Path $installDir "bin"
     if (-not (Test-Path (Join-Path $binDir "quarto.exe"))) {
         throw "Extraction finished but quarto.exe was not found under $binDir."
     }
+
+    if ($NoPath) { return }
 
     $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
     if ($userPath -notlike "*$binDir*") {
@@ -112,9 +145,9 @@ function Download-AndExtractQuarto {
 
 function Show-ManualQuartoInstallInstructions {
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host "MANUAL QUARTO INSTALLATION REQUIRED" -ForegroundColor Yellow
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Automatic download of Quarto failed."
     Write-Host "Please install Quarto manually:"
@@ -124,7 +157,7 @@ function Show-ManualQuartoInstallInstructions {
     Write-Host "  3. Extract to a folder and add the 'bin' subfolder to PATH"
     Write-Host "  4. Restart this installer after Quarto is installed"
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
 }
 
 function Install-Quarto {

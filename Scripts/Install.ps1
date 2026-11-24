@@ -26,12 +26,17 @@ $MarimoStartMenuFolder = Join-Path $StartMenuPath "Marimo"
 function Show-InstallMenu {
     param(
         [string[]]$MenuItems,
+        [bool[]]$MainDefaults = @(),
         [int]$ExpandableIndex = -1,
         [string[]]$SubItems = @(),
         [bool[]]$SubDefaults = @()
     )
 
-    $selected = [bool[]](@($true) * $MenuItems.Count)
+    $selected = if ($MainDefaults.Count -eq $MenuItems.Count) {
+        [bool[]]$MainDefaults.Clone()
+    } else {
+        [bool[]](@($true) * $MenuItems.Count)
+    }
     $subSelected = if ($SubDefaults.Count -eq $SubItems.Count) {
         [bool[]]$SubDefaults.Clone()
     } else {
@@ -184,7 +189,7 @@ Write-Host "Mechanical Engineering Python Development Setup"         -Foreground
 Write-Host "--------------------------------------------------------" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "By Mirza Cenanovic"                                      -ForegroundColor Cyan
-Write-Host "15 April 2026"
+Write-Host "24 November 2026"
 Write-Host ""
 Write-Host "Select components to install:"                           -ForegroundColor Cyan
 Write-Host ""
@@ -193,6 +198,7 @@ $menuItems = @(
     "FFmpeg (audio/video processing)"
     "Git"
     "VS Code with Python and Jupyter extensions"
+    "PlatformIO for ESP32 (VS Code extensions and toolbar)"
     "Quarto (scientific publishing)"
     "TinyTeX (LaTeX for PDF rendering)"
     "uv and Python"
@@ -214,7 +220,10 @@ $winSubItems = @(
 
 $winSubDefaults = @($true, $true, $true, $true, $true, $false, $false)
 
-$result = Show-InstallMenu $menuItems -ExpandableIndex 9 -SubItems $winSubItems -SubDefaults $winSubDefaults
+# PlatformIO is for the mechatronics courses only, so it starts unticked.
+$mainDefaults = @($true, $true, $true, $false, $true, $true, $true, $true, $true, $true, $true)
+
+$result = Show-InstallMenu $menuItems -MainDefaults $mainDefaults -ExpandableIndex 10 -SubItems $winSubItems -SubDefaults $winSubDefaults
 $choices = $result.Selected
 $winChoices = $result.SubSelected
 
@@ -236,32 +245,38 @@ if ($choices[2]) {
     & "$SourceDir\InstallVSCode.ps1"
 }
 
-# 4. Install Quarto
+# 4. Install PlatformIO extensions and toolbar setting
 if ($choices[3]) {
+    Write-Host "Installing PlatformIO for ESP32..."
+    & "$SourceDir\InstallPlatformIO.ps1"
+}
+
+# 5. Install Quarto
+if ($choices[4]) {
     Write-Host "Installing Quarto..."
     & "$SourceDir\InstallQuarto.ps1"
 }
 
-# 5. Install TinyTeX
-if ($choices[4]) {
+# 6. Install TinyTeX
+if ($choices[5]) {
     Write-Host "Installing TinyTeX..."
     & "$SourceDir\InstallTinyTeX.ps1"
 }
 
-# 6. Install uv and Python
-if ($choices[5]) {
+# 7. Install uv and Python
+if ($choices[6]) {
     Write-Host "Installing Python..."
     & "$SourceDir\InstallPython.ps1"
 }
 
-# 7. Create default venv and install packages
-if ($choices[6]) {
+# 8. Create default venv and install packages
+if ($choices[7]) {
     Write-Host "Creating virtual environment and installing packages..."
     & "$SourceDir\createDefaultVenvAndInstallPackages.ps1"
 }
 
-# 8. Marimo files, shortcuts and context menus
-if ($choices[7]) {
+# 9. Marimo files, shortcuts and context menus
+if ($choices[8]) {
     Write-Host "Setting up installation directory and shortcuts..."
 
     # Create installation directory and copy files
@@ -312,26 +327,9 @@ if ($choices[7]) {
     $Shortcut.Description = "Uninstall Marimo"
     $Shortcut.Save()
 
-    Write-Host "Adding 'Open with Marimo' to context menus, this may take a minute..."
-    # For Files: "Open with Marimo"
-    $regKeyFile = "HKCU:\Software\Classes\*\shell\Open with Marimo"
-    $regCommandFile = "$regKeyFile\command"
-    New-Item -Path $regKeyFile -Force | Out-Null
-    New-Item -Path $regCommandFile -Force | Out-Null
-    Set-ItemProperty -Path $regKeyFile -Name "(Default)" -Value "Open with Marimo"
-    Set-ItemProperty -Path $regKeyFile -Name "Icon" -Value "$InstallDir\mo.ico"
-    $commandValueFile = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstallDir\runMarimoFile.ps1`" `"%1`""
-    Set-ItemProperty -Path $regCommandFile -Name "(Default)" -Value $commandValueFile
-
-    # For Folder Backgrounds: "Open in Marimo"
-    $regKeyDir = "HKCU:\Software\Classes\Directory\Background\shell\Marimo"
-    $regCommandDir = "$regKeyDir\command"
-    New-Item -Path $regKeyDir -Force | Out-Null
-    New-Item -Path $regCommandDir -Force | Out-Null
-    Set-ItemProperty -Path $regKeyDir -Name "(Default)" -Value "Open in Marimo"
-    Set-ItemProperty -Path $regKeyDir -Name "Icon" -Value "$InstallDir\mo.ico"
-    $commandValueDir = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstallDir\runMarimo.ps1`" `"%V`""
-    Set-ItemProperty -Path $regCommandDir -Name "(Default)" -Value $commandValueDir
+    Write-Host "Adding Marimo to the right-click menus..."
+    . "$SourceDir\contextMenus.ps1"
+    Register-MarimoContextMenus -InstallDir $InstallDir
 
     Write-Host "Adding Marimo to your user PATH..."
     Push-Location -Path $InstallDir
@@ -339,8 +337,8 @@ if ($choices[7]) {
     Pop-Location
 }
 
-# 9. Configure Marimo dark mode
-if ($choices[8]) {
+# 10. Configure Marimo dark mode
+if ($choices[9]) {
     Write-Host "Configuring Marimo dark mode..."
     $marimoConfigPath = Join-Path $env:USERPROFILE ".marimo.toml"
     if (-not (Test-Path $marimoConfigPath)) {
@@ -354,7 +352,7 @@ if ($choices[8]) {
     }
 }
 
-# 10. Windows configuration
+# 11. Windows configuration
 # Windows Terminal
 if ($winChoices[0]) {
     $wt = Get-Command wt.exe -ErrorAction SilentlyContinue

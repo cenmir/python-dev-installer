@@ -23,6 +23,22 @@ function Test-VSCodeInstalled {
     return $false
 }
 
+function Get-VSCodeCli {
+    # The 'code' command, or VS Code's bin\code.cmd when VS Code was installed
+    # without adding itself to PATH (or PATH has not caught up yet).
+    $cmd = Get-Command code -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Path }
+    $candidates = @(
+        "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
+        "$env:ProgramFiles\Microsoft VS Code\bin\code.cmd",
+        "${env:ProgramFiles(x86)}\Microsoft VS Code\bin\code.cmd"
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { return $c }
+    }
+    return $null
+}
+
 function Test-WingetAvailable {
     $wingetPath = (Get-Command winget -ErrorAction SilentlyContinue).Path
     if ($wingetPath) {
@@ -66,9 +82,9 @@ function Install-VSCodeWithWinget {
 
 function Show-ManualVSCodeInstallInstructions {
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host "MANUAL VS CODE INSTALLATION REQUIRED" -ForegroundColor Yellow
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host ""
     Write-Host "winget is not available on this system."
     Write-Host "Please install VS Code manually:"
@@ -79,28 +95,29 @@ function Show-ManualVSCodeInstallInstructions {
     Write-Host "  4. IMPORTANT: Check 'Add to PATH' during installation"
     Write-Host "  5. Restart this installer after VS Code is installed"
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
 }
 
 function Install-VSCodeExtensions {
-    Write-Host "Installing VS Code extensions..." -ForegroundColor Cyan
-
-    $extensions = @(
-        "ms-python.python",
-        "ms-toolsai.jupyter"
+    param(
+        [string[]]$Extensions = @(
+            "ms-python.python",
+            "ms-toolsai.jupyter"
+        )
     )
+    Write-Host "Installing VS Code extensions..." -ForegroundColor Cyan
+    $extensions = $Extensions
 
-    # Check if 'code' command is available
-    $codePath = (Get-Command code -ErrorAction SilentlyContinue).Path
+    $codePath = Get-VSCodeCli
     if (-not $codePath) {
-        Write-Warning "VS Code 'code' command not found in PATH. Extensions not installed."
+        Write-Warning "VS Code 'code' command not found. Extensions not installed."
         Write-Host "You may need to restart your terminal and run the installer again." -ForegroundColor Yellow
         return $false
     }
 
     foreach ($ext in $extensions) {
         Write-Host "  Installing $ext..." -ForegroundColor Gray
-        code --install-extension $ext --force 2>$null
+        & $codePath --install-extension $ext --force 2>$null
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  Installed $ext" -ForegroundColor Green
         } else {
@@ -112,47 +129,62 @@ function Install-VSCodeExtensions {
     return $true
 }
 
-function Set-VSCodePythonSettings {
-    Write-Host "Configuring VS Code Python settings..." -ForegroundColor Cyan
+function Update-VSCodeUserSettings {
+    # Merges $Values (setting name -> value) into the VS Code user
+    # settings.json and keeps every other setting. Works in Windows
+    # PowerShell 5.1, which setup.bat and download.ps1 run, and which has
+    # no ConvertFrom-Json -AsHashtable. A settings.json that does not parse
+    # (comments, trailing commas) is left untouched.
+    param(
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Values,
+        [string]$SettingsPath = (Join-Path $env:APPDATA "Code\User\settings.json")
+    )
 
-    $settingsPath = Join-Path $env:APPDATA "Code\User\settings.json"
-    $settingsDir = Split-Path $settingsPath -Parent
-
-    # Ensure the directory exists
+    $settingsDir = Split-Path $SettingsPath -Parent
     if (-not (Test-Path $settingsDir)) {
         New-Item -Path $settingsDir -ItemType Directory -Force | Out-Null
     }
 
-    # Read existing settings or create empty object
-    $settings = @{}
-    if (Test-Path $settingsPath) {
-        try {
-            $content = Get-Content $settingsPath -Raw
-            if ($content) {
-                $settings = $content | ConvertFrom-Json -AsHashtable
+    $settings = New-Object PSObject
+    if (Test-Path $SettingsPath) {
+        $content = Get-Content $SettingsPath -Raw
+        if ($content -and $content.Trim()) {
+            try {
+                $settings = $content | ConvertFrom-Json -ErrorAction Stop
             }
-        }
-        catch {
-            Write-Warning "Could not parse existing settings.json. Creating backup and starting fresh."
-            Copy-Item $settingsPath "$settingsPath.backup" -Force
-            $settings = @{}
+            catch {
+                Write-Warning "Could not read $SettingsPath (comments or trailing commas?). It was not changed."
+                Write-Host "Add these settings by hand (Ctrl+Shift+P > Preferences: Open User Settings (JSON)):" -ForegroundColor Yellow
+                Write-Host ($Values | ConvertTo-Json -Depth 10)
+                return $false
+            }
         }
     }
 
-    # Set Python interpreter path using VS Code variable
-    $venvPythonPath = "`${userHome}\.venvs\default\Scripts\python.exe"
-    $settings["python.defaultInterpreterPath"] = $venvPythonPath
+    foreach ($key in $Values.Keys) {
+        $settings | Add-Member -NotePropertyName $key -NotePropertyValue $Values[$key] -Force
+    }
 
-    # Write settings back
     try {
-        $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
-        Write-Host "VS Code configured to use default venv at ~/.venvs/default" -ForegroundColor Green
+        $settings | ConvertTo-Json -Depth 10 | Set-Content $SettingsPath -Encoding UTF8
         return $true
     }
     catch {
         Write-Error "Failed to write VS Code settings: $($_.Exception.Message)"
         return $false
     }
+}
+
+function Set-VSCodePythonSettings {
+    Write-Host "Configuring VS Code Python settings..." -ForegroundColor Cyan
+
+    # VS Code expands ${userHome} itself, so the setting works for any user.
+    $venvPythonPath = "`${userHome}\.venvs\default\Scripts\python.exe"
+    $ok = Update-VSCodeUserSettings -Values @{ "python.defaultInterpreterPath" = $venvPythonPath }
+    if ($ok) {
+        Write-Host "VS Code configured to use default venv at ~/.venvs/default" -ForegroundColor Green
+    }
+    return $ok
 }
 
 function Add-VSCodeContextMenu {

@@ -3,9 +3,11 @@
 
 $ErrorActionPreference = "Stop"
 
-# Force TLS 1.2 (required by GitHub)
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
+# Add TLS 1.2, and TLS 1.3 where Windows has it (Windows 11, build 22000+);
+# mechanics.ju.se accepts only TLS 1.3. Adding keeps what is already allowed.
+$tls = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+if ([Environment]::OSVersion.Version.Build -ge 22000) { $tls = $tls -bor [Net.SecurityProtocolType]::Tls13 }
+[Net.ServicePointManager]::SecurityProtocol = $tls
 $InstallDir = "$env:USERPROFILE\marimo"
 $repoApi = "https://api.github.com/repos/cenmir/python-dev-installer/releases/latest"
 $configPath = Join-Path $InstallDir "config.json"
@@ -27,13 +29,25 @@ try {
     # Fetch latest release info
     Write-Host "Checking for updates..." -ForegroundColor Cyan
     $ProgressPreference = 'SilentlyContinue'
-    $release = Invoke-RestMethod -Uri $repoApi -TimeoutSec 10
-    $latestVersion = $release.tag_name
-    $zipUrl = $release.zipball_url
+    try {
+        $release = Invoke-RestMethod -Uri $repoApi -TimeoutSec 10
+        $latestVersion = $release.tag_name
+        $zipUrl = $release.zipball_url
+    } catch {
+        # GitHub's API limits requests per IP address; fall back to the
+        # mirror on mechanics.ju.se, which is rebuilt with every book publish.
+        Write-Host "GitHub unavailable ($($_.Exception.Message)); using mechanics.ju.se." -ForegroundColor Yellow
+        $latestVersion = (Invoke-RestMethod -Uri "https://mechanics.ju.se/installer/version.txt" -TimeoutSec 10).Trim()
+        $zipUrl = "https://mechanics.ju.se/installer/python-dev-installer.zip"
+    }
 
     Write-Host "Latest version:  $latestVersion" -ForegroundColor Gray
 
-    if ($latestVersion -eq $currentVersion) {
+    $upToDate = $latestVersion -eq $currentVersion
+    try {
+        $upToDate = [version]($latestVersion.TrimStart('v')) -le [version]($currentVersion.TrimStart('v'))
+    } catch { }
+    if ($upToDate) {
         Write-Host ""
         Write-Host "You're already on the latest version!" -ForegroundColor Green
         Read-Host "Press Enter to exit..."
@@ -57,8 +71,9 @@ try {
     Write-Host "Extracting..." -ForegroundColor Cyan
     Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
 
-    # Find the extracted folder (GitHub adds a prefix)
-    $extractedDir = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "cenmir-python-dev-installer-*" } | Select-Object -First 1
+    # Find the extracted folder: cenmir-python-dev-installer-<sha> from a
+    # GitHub release, python-dev-installer-main from mechanics.ju.se.
+    $extractedDir = Get-ChildItem -Path $tempDir -Directory | Where-Object { Test-Path (Join-Path $_.FullName "Scripts") } | Select-Object -First 1
     if (-not $extractedDir) {
         throw "Could not find extracted directory"
     }

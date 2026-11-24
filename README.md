@@ -12,6 +12,14 @@ Open **PowerShell** and paste:
 irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/download.ps1 | iex
 ```
 
+If GitHub cannot be reached, the same installer is mirrored on the mechanics book's site:
+
+```powershell
+irm https://mechanics.ju.se/installer/install.ps1 | iex
+```
+
+The mirror is rebuilt from this repository's HEAD by `tools/build_installer.py` in the mechanics book and deployed with the book.
+
 > **Execution policy error?** If PowerShell blocks the script, run this first to allow scripts for the current user:
 > ```powershell
 > Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
@@ -30,7 +38,8 @@ irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/download.
 ### Software Installation
 - **Git** - Version control (prompts for name/email configuration)
 - **VS Code** - Code editor with Python and Jupyter extensions, context menu integration
-- **Quarto** - Scientific and technical publishing
+- **PlatformIO for ESP32** (unticked by default) - PlatformIO IDE, Microsoft Serial Monitor and Teleplot extensions; the PlatformIO toolbar plug button opens Microsoft's Serial Monitor
+- **Quarto** - Scientific and technical publishing (portable, no admin)
 - **TinyTeX** - LaTeX distribution for PDF rendering
 - **FFmpeg** - Audio/video processing toolkit
 - **uv + Python** - Fast package manager and Python 3.13
@@ -43,7 +52,7 @@ irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/download.
 ### Marimo Setup
 - Copies scripts to `~\marimo` and adds it to user PATH
 - Creates Start Menu shortcuts (Marimo, New Notebook, Update, Uninstall)
-- Adds "Open with Marimo" and "Open in Marimo" context menus
+- Adds "Open with Marimo" to `.py` files and "Open in Marimo" to folders (right-click on and inside a folder)
 - Configures dark mode by default (`~/.marimo.toml`)
 
 ### Windows Configuration (submenu)
@@ -58,8 +67,8 @@ irm https://raw.githubusercontent.com/cenmir/python-dev-installer/main/download.
 - **Launch Marimo**: Right-click in a folder > "Open in Marimo", or Start Menu, or type `m` in the terminal
 - **Open in VS Code**: Right-click on any folder > "Open with VS Code"
 - **Update**: Double-click `update.bat` in `~\marimo`, or use the Start Menu shortcut
-- **Repair**: Double-click `repair.bat` in `~\marimo` to fix broken venvs, VS Code, PATH, context menus, or shortcuts
-- **Uninstall**: Double-click `uninstall.bat` in `~\marimo`, or use the Start Menu shortcut (removes everything)
+- **Repair**: Double-click `repair.bat` in `~\marimo` to fix broken venvs, VS Code (reinstalls every extension that was installed), PATH, context menus, or shortcuts
+- **Uninstall**: Double-click `uninstall.bat` in `~\marimo`, or use the Start Menu shortcut. It asks before removing anything, and asks separately before deleting VS Code settings and extensions
 
 ## Project-specific Virtual Environments
 
@@ -82,7 +91,8 @@ Copy `Scripts/init.bat` to your project folder and double-click it. This creates
 | `Install.ps1` | Main orchestrator: interactive menu, calls all installers, configures system |
 | `InstallGit.ps1` | Installs Git via winget, prompts for user.name/email |
 | `InstallVSCode.ps1` | Installs VS Code via winget, adds extensions and context menus |
-| `InstallQuarto.ps1` | Installs Quarto via winget |
+| `InstallPlatformIO.ps1` | Adds the PlatformIO, Serial Monitor and Teleplot extensions and the `platformio-ide.toolbar` setting |
+| `InstallQuarto.ps1` | Downloads the portable Quarto zip from GitHub to `%LOCALAPPDATA%\Quarto` and adds it to PATH |
 | `InstallTinyTeX.ps1` | Detects any LaTeX distro, installs TinyTeX if none found |
 | `InstallFFmpeg.ps1` | Downloads and installs FFmpeg from gyan.dev (GitHub fallback) |
 | `InstallPython.ps1` | Installs uv and Python 3.13 |
@@ -96,6 +106,7 @@ Copy `Scripts/init.bat` to your project folder and double-click it. This creates
 | `runMarimo.ps1` | Opens Marimo in a given folder |
 | `runMarimoFile.ps1` | Opens a file in Marimo |
 | `runMarimoTemp.ps1` | Creates and opens a new Marimo notebook |
+| `contextMenus.ps1` | Registers and removes the Marimo right-click entries (used by Install, repair, uninstall) |
 | `activate.ps1` | Adds/removes `~\marimo` to user PATH |
 
 ### Scripts/ - Maintenance

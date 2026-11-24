@@ -19,28 +19,61 @@ function Refresh-PathEnvironment {
     $env:PATH = "$userPath;$machinePath"
 }
 
+function Get-LatestReleaseTag {
+    # github.com/<repo>/releases/latest redirects to .../releases/tag/<tag>.
+    # Used when the GitHub API refuses: it allows 60 unauthenticated requests
+    # per hour per IP address, which a classroom on one university address
+    # runs through.
+    param([string]$Repo)
+    $request = [System.Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
+    $request.AllowAutoRedirect = $false
+    $response = $request.GetResponse()
+    $location = $response.Headers["Location"]
+    $response.Close()
+    if ($location -notmatch '/tag/([^/]+)$') {
+        throw "Could not determine the latest release of $Repo."
+    }
+    return $Matches[1]
+}
+
 function Install-TinyTeXFromGitHub {
     Write-Host "Downloading TinyTeX from GitHub..." -ForegroundColor Cyan
     Write-Host "This may take a few minutes (~120 MB)." -ForegroundColor Yellow
 
     try {
         # Get the latest release download URL for TinyTeX-1 (includes common LaTeX packages)
+        # Add TLS 1.2, and TLS 1.3 where Windows has it (Windows 11, build 22000+);
+        # mechanics.ju.se accepts only TLS 1.3. Adding keeps what is already allowed.
+        $tls = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        if ([Environment]::OSVersion.Version.Build -ge 22000) { $tls = $tls -bor [Net.SecurityProtocolType]::Tls13 }
+        [Net.ServicePointManager]::SecurityProtocol = $tls
         $releasesApi = "https://api.github.com/repos/rstudio/tinytex-releases/releases/latest"
-        $ProgressPreference = 'SilentlyContinue'
-        $release = Invoke-RestMethod -Uri $releasesApi -UseBasicParsing
-        $ProgressPreference = 'Continue'
-
-        $asset = $release.assets | Where-Object { $_.name -match '^TinyTeX-1-windows-.*\.exe$' } | Select-Object -First 1
-        if (-not $asset) {
-            Write-Error "Could not find TinyTeX-1 Windows installer in the latest release."
-            return $false
+        $asset = $null
+        try {
+            $ProgressPreference = 'SilentlyContinue'
+            $release = Invoke-RestMethod -Uri $releasesApi -UseBasicParsing
+            $asset = $release.assets | Where-Object { $_.name -match '^TinyTeX-1-windows-.*\.exe$' } | Select-Object -First 1
+        }
+        catch {
+            Write-Host "GitHub API unavailable ($($_.Exception.Message)); reading the release tag instead." -ForegroundColor Yellow
+        }
+        finally {
+            $ProgressPreference = 'Continue'
         }
 
-        $downloadUrl = $asset.browser_download_url
-        $exePath = Join-Path $env:TEMP $asset.name
+        if ($asset) {
+            $downloadUrl = $asset.browser_download_url
+            $assetName = $asset.name
+        } else {
+            # Tag v2026.11 has TinyTeX-1-windows-v2026.11.exe.
+            $tag = Get-LatestReleaseTag -Repo "rstudio/tinytex-releases"
+            $assetName = "TinyTeX-1-windows-$tag.exe"
+            $downloadUrl = "https://github.com/rstudio/tinytex-releases/releases/download/$tag/$assetName"
+        }
+        $exePath = Join-Path $env:TEMP $assetName
         $installDir = "$env:APPDATA\TinyTeX"
 
-        Write-Host "Downloading $($asset.name) ..." -ForegroundColor Cyan
+        Write-Host "Downloading $assetName ..." -ForegroundColor Cyan
 
         # Download with progress bar using chunked .NET stream
         $request = [System.Net.HttpWebRequest]::Create($downloadUrl)
@@ -119,9 +152,9 @@ function Install-TinyTeXFromGitHub {
 
 function Show-ManualTinyTeXInstallInstructions {
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host "MANUAL TINYTEX INSTALLATION REQUIRED" -ForegroundColor Yellow
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Please install TinyTeX manually:"
     Write-Host ""
@@ -131,7 +164,7 @@ function Show-ManualTinyTeXInstallInstructions {
     Write-Host "  4. Add %APPDATA%\TinyTeX\bin\windows to your PATH"
     Write-Host "  5. Restart this installer after TinyTeX is installed"
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
 }
 
 function Install-TinyTeX {

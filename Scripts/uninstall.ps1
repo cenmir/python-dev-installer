@@ -3,7 +3,16 @@ Write-Host "========================================================" -Foregroun
 Write-Host "  Python Development Environment - Full Uninstaller"     -ForegroundColor Red
 Write-Host "========================================================" -ForegroundColor Red
 Write-Host ""
-Write-Host "This will remove all components installed by the setup." -ForegroundColor Yellow
+Write-Host "This will remove all components installed by the setup:" -ForegroundColor Yellow
+Write-Host "the default virtual environment and its packages, uv and Python, FFmpeg,"
+Write-Host "Git (portable), Quarto, TinyTeX, the Marimo shortcuts and context menus."
+Write-Host "Your own files and notebooks are not touched."
+Write-Host ""
+$go = Read-Host "Continue? (y/N)"
+if ($go -notmatch '^[Yy]') {
+    Write-Host "Nothing was removed." -ForegroundColor Green
+    return
+}
 Write-Host ""
 
 # --- Define Paths ---
@@ -40,19 +49,15 @@ function Remove-FromUserPath {
 }
 
 # ============================================================
-# SECTION 1: Always remove (no prompt needed)
+# SECTION 1: Remove what the installer added
 # ============================================================
 
 Write-Host "--- Removing Marimo components ---" -ForegroundColor Cyan
 
 # Marimo context menus
-$regKeyFile = "HKCU:\Software\Classes\*\shell\Open with Marimo"
-$regKeyDir = "HKCU:\Software\Classes\Directory\Background\shell\Marimo"
-foreach ($key in @($regKeyFile, $regKeyDir)) {
-    if (Test-Path $key) {
-        Write-Host "Removing registry key: $key"
-        Remove-Item -Path $key -Recurse -Force
-    }
+if (Test-Path "$PSScriptRoot\contextMenus.ps1") {
+    . "$PSScriptRoot\contextMenus.ps1"
+    Unregister-MarimoContextMenus
 }
 
 # VS Code context menus
@@ -96,19 +101,43 @@ Remove-DirIfExists "$env:APPDATA\TinyTeX" "TinyTeX"
 Remove-FromUserPath "$env:APPDATA\TinyTeX\bin\windows"
 Remove-FromUserPath "$env:APPDATA\TinyTeX\bin\win32"
 
-# uv + Python
-Remove-DirIfExists "$env:USERPROFILE\.local\bin" "uv"
+# uv + Python. ~\.local\bin is shared with other tools (Claude Code, pipx,
+# uv tool installs), so only uv's own programs are removed, and the folder
+# leaves PATH only when nothing else is left in it.
+$uvBin = "$env:USERPROFILE\.local\bin"
+foreach ($exe in @("uv.exe", "uvx.exe", "uvw.exe")) {
+    $exePath = Join-Path $uvBin $exe
+    if (Test-Path $exePath) {
+        Remove-Item $exePath -Force -ErrorAction SilentlyContinue
+        Write-Host "  Removed $exePath" -ForegroundColor Green
+    }
+}
 Remove-DirIfExists "$env:APPDATA\uv" "uv cache and Python installations"
-Remove-FromUserPath "$env:USERPROFILE\.local\bin"
+if ((Test-Path $uvBin) -and -not (Get-ChildItem $uvBin -Force | Select-Object -First 1)) {
+    Remove-Item $uvBin -Force
+}
+if (-not (Test-Path $uvBin)) {
+    Remove-FromUserPath $uvBin
+}
 
+# VS Code may have been there before the installer, and its settings and
+# extensions may be the student's own, so wiping them is opt-in.
 Write-Host ""
-Write-Host "--- Removing VS Code data ---" -ForegroundColor Cyan
+Write-Host "VS Code settings and extensions can be deleted too. This removes ALL of them," -ForegroundColor Yellow
+Write-Host "including ones you added yourself, and resets VS Code to a fresh install." -ForegroundColor Yellow
+$wipeVSCode = Read-Host "Delete all VS Code settings and extensions? (y/N)"
+if ($wipeVSCode -match '^[Yy]') {
+    Write-Host ""
+    Write-Host "--- Removing VS Code data ---" -ForegroundColor Cyan
 
-# VS Code extensions
-Remove-DirIfExists "$env:USERPROFILE\.vscode" "VS Code extensions"
+    # VS Code extensions
+    Remove-DirIfExists "$env:USERPROFILE\.vscode" "VS Code extensions"
 
-# VS Code user data (settings, keybindings, snippets, state)
-Remove-DirIfExists "$env:APPDATA\Code" "VS Code user data"
+    # VS Code user data (settings, keybindings, snippets, state)
+    Remove-DirIfExists "$env:APPDATA\Code" "VS Code user data"
+} else {
+    Write-Host "VS Code settings and extensions kept." -ForegroundColor Green
+}
 
 Write-Host ""
 Write-Host "--- Removing configuration files ---" -ForegroundColor Cyan
@@ -131,15 +160,16 @@ Remove-FromUserPath $InstallDir
 $winget = Get-Command winget -ErrorAction SilentlyContinue
 if ($winget) {
     Write-Host ""
-    $uninstallApps = Read-Host "Also uninstall Git, VS Code, and Quarto via winget? (y/N)"
+    # Git and Quarto are portable copies, removed above. Only VS Code comes
+    # from winget; asking winget for Git.Git or Posit.Quarto would remove
+    # copies the student installed separately.
+    $uninstallApps = Read-Host "Also uninstall VS Code via winget? (y/N)"
     if ($uninstallApps -match '^[Yy]') {
         Write-Host ""
         Write-Host "--- Uninstalling applications ---" -ForegroundColor Cyan
 
         $apps = @(
-            @{ Name = "Git"; Id = "Git.Git" },
-            @{ Name = "VS Code"; Id = "Microsoft.VisualStudioCode" },
-            @{ Name = "Quarto"; Id = "Posit.Quarto" }
+            @{ Name = "VS Code"; Id = "Microsoft.VisualStudioCode" }
         )
 
         foreach ($app in $apps) {

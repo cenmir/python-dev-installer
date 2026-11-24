@@ -11,13 +11,14 @@ $MarimoStartMenuFolder = Join-Path $StartMenuPath "Marimo"
 
 # Dot-source installer scripts to reuse their functions
 . "$SourceDir\InstallVSCode.ps1"
+. "$SourceDir\InstallPlatformIO.ps1"
 . "$SourceDir\createDefaultVenvAndInstallPackages.ps1"
 
 # --- Repair Menu ---
 function Show-RepairMenu {
     $options = @(
         "Recreate virtual environment (delete and reinstall packages)"
-        "Reset VS Code (nuke settings/extensions, reinstall)"
+        "Reset VS Code (wipe settings, reinstall all extensions)"
         "Fix PATH entries (re-add missing paths)"
         "Fix context menus (Marimo + VS Code)"
         "Fix Start Menu shortcuts"
@@ -77,8 +78,7 @@ if ($repairs -contains 1) {
             & $activateScript
             $requirementsFile = Join-Path $SourceDir "requirements.txt"
             Write-Host "Installing packages from $requirementsFile..."
-            uv pip install -r $requirementsFile
-            Write-Host "Packages installed." -ForegroundColor Green
+            Install-Requirements -RequirementsFile $requirementsFile | Out-Null
         }
     } else {
         Write-Warning "Failed to create virtual environment. Is uv installed?"
@@ -91,6 +91,16 @@ if ($repairs -contains 1) {
 if ($repairs -contains 2) {
     Write-Host ""
     Write-Host "--- Resetting VS Code ---" -ForegroundColor Cyan
+
+    # Note every installed extension first, so the reset brings all of them
+    # back, not only the installer's own.
+    $codePath = Get-VSCodeCli
+    $extensions = @("ms-python.python", "ms-toolsai.jupyter")
+    if ($codePath) {
+        $installed = @(& $codePath --list-extensions 2>$null | Where-Object { $_ -match '^\S+\.\S+$' })
+        Write-Host "Found $($installed.Count) installed extensions; they will be reinstalled."
+        $extensions = @($extensions + $installed | Sort-Object -Unique)
+    }
 
     # Nuke VS Code user data and extensions
     $vscodeDirs = @(
@@ -111,10 +121,12 @@ if ($repairs -contains 2) {
     }
 
     # Reinstall extensions and settings (reusing functions from InstallVSCode.ps1)
-    $codePath = (Get-Command code -ErrorAction SilentlyContinue).Path
     if ($codePath) {
-        Install-VSCodeExtensions
-        Set-VSCodePythonSettings
+        Install-VSCodeExtensions -Extensions $extensions | Out-Null
+        Set-VSCodePythonSettings | Out-Null
+        if ($extensions -contains "platformio.platformio-ide") {
+            Set-PlatformIOToolbar
+        }
     } else {
         Write-Warning "VS Code 'code' command not found. Extensions and settings not restored."
     }
@@ -173,30 +185,8 @@ if ($repairs -contains 4) {
     Write-Host ""
     Write-Host "--- Fixing context menus ---" -ForegroundColor Cyan
 
-    # Marimo context menus
-    Write-Host "Registering Marimo context menus..."
-
-    # For Files: "Open with Marimo"
-    $regKeyFile = "HKCU:\Software\Classes\*\shell\Open with Marimo"
-    $regCommandFile = "$regKeyFile\command"
-    New-Item -Path $regKeyFile -Force | Out-Null
-    New-Item -Path $regCommandFile -Force | Out-Null
-    Set-ItemProperty -Path $regKeyFile -Name "(Default)" -Value "Open with Marimo"
-    Set-ItemProperty -Path $regKeyFile -Name "Icon" -Value "$InstallDir\mo.ico"
-    $commandValueFile = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstallDir\runMarimoFile.ps1`" `"%1`""
-    Set-ItemProperty -Path $regCommandFile -Name "(Default)" -Value $commandValueFile
-    Write-Host "  'Open with Marimo' (files) registered." -ForegroundColor Green
-
-    # For Folder Backgrounds: "Open in Marimo"
-    $regKeyDir = "HKCU:\Software\Classes\Directory\Background\shell\Marimo"
-    $regCommandDir = "$regKeyDir\command"
-    New-Item -Path $regKeyDir -Force | Out-Null
-    New-Item -Path $regCommandDir -Force | Out-Null
-    Set-ItemProperty -Path $regKeyDir -Name "(Default)" -Value "Open in Marimo"
-    Set-ItemProperty -Path $regKeyDir -Name "Icon" -Value "$InstallDir\mo.ico"
-    $commandValueDir = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstallDir\runMarimo.ps1`" `"%V`""
-    Set-ItemProperty -Path $regCommandDir -Name "(Default)" -Value $commandValueDir
-    Write-Host "  'Open in Marimo' (folders) registered." -ForegroundColor Green
+    . "$SourceDir\contextMenus.ps1"
+    Register-MarimoContextMenus -InstallDir $InstallDir
 
     # VS Code context menus (reusing function from InstallVSCode.ps1)
     Add-VSCodeContextMenu

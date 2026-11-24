@@ -14,21 +14,50 @@ function Refresh-PathEnvironment {
     $env:PATH = "$userPath;$machinePath"
 }
 
+function Get-LatestReleaseTag {
+    # github.com/<repo>/releases/latest redirects to .../releases/tag/<tag>.
+    # Used when the GitHub API refuses: it allows 60 unauthenticated requests
+    # per hour per IP address, which a classroom on one university address
+    # runs through.
+    param([string]$Repo)
+    $request = [System.Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
+    $request.AllowAutoRedirect = $false
+    $response = $request.GetResponse()
+    $location = $response.Headers["Location"]
+    $response.Close()
+    if ($location -notmatch '/tag/([^/]+)$') {
+        throw "Could not determine the latest release of $Repo."
+    }
+    return $Matches[1]
+}
+
 function Get-MinGitDownloadUrl {
     # Query GitHub API for the latest Git for Windows release and pick the
     # 64-bit MinGit asset (not the busybox variant).
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest" -UseBasicParsing
-
-    $asset = $release.assets | Where-Object {
-        $_.name -like "MinGit-*-64-bit.zip" -and $_.name -notlike "*busybox*"
-    } | Select-Object -First 1
-
-    if (-not $asset) {
-        throw "Could not find a MinGit 64-bit zip asset in the latest Git for Windows release."
+    # Add TLS 1.2, and TLS 1.3 where Windows has it (Windows 11, build 22000+);
+    # mechanics.ju.se accepts only TLS 1.3. Adding keeps what is already allowed.
+    $tls = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    if ([Environment]::OSVersion.Version.Build -ge 22000) { $tls = $tls -bor [Net.SecurityProtocolType]::Tls13 }
+    [Net.ServicePointManager]::SecurityProtocol = $tls
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest" -UseBasicParsing
+        $asset = $release.assets | Where-Object {
+            $_.name -like "MinGit-*-64-bit.zip" -and $_.name -notlike "*busybox*"
+        } | Select-Object -First 1
+        if ($asset) { return $asset.browser_download_url }
+    }
+    catch {
+        Write-Host "GitHub API unavailable ($($_.Exception.Message)); reading the release tag instead." -ForegroundColor Yellow
     }
 
-    return $asset.browser_download_url
+    # Tag v2.56.1.windows.1 has MinGit-2.56.1-64-bit.zip; a rebuild such as
+    # v2.56.1.windows.2 has MinGit-2.56.1.2-64-bit.zip.
+    $tag = Get-LatestReleaseTag -Repo "git-for-windows/git"
+    if ($tag -notmatch '^v(\d+\.\d+\.\d+)\.windows\.(\d+)$') {
+        throw "Unexpected Git for Windows tag: $tag"
+    }
+    $version = if ($Matches[2] -eq '1') { $Matches[1] } else { "$($Matches[1]).$($Matches[2])" }
+    return "https://github.com/git-for-windows/git/releases/download/$tag/MinGit-$version-64-bit.zip"
 }
 
 function Download-AndExtractMinGit {
@@ -97,9 +126,9 @@ function Download-AndExtractMinGit {
 
 function Show-ManualInstallInstructions {
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host "MANUAL GIT INSTALLATION REQUIRED" -ForegroundColor Yellow
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Automatic download of MinGit failed."
     Write-Host "Please install Git manually:"
@@ -111,7 +140,7 @@ function Show-ManualInstallInstructions {
     Write-Host "  3. Extract to a folder and add the 'cmd' subfolder to PATH"
     Write-Host "  4. Restart this installer after Git is installed"
     Write-Host ""
-    Write-Host "=" * 60 -ForegroundColor Yellow
+    Write-Host ("=" * 60) -ForegroundColor Yellow
 }
 
 function Install-Git {

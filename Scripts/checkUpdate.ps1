@@ -44,18 +44,37 @@ function Test-MarimoUpdate {
         }
     }
 
+    # GitHub needs TLS 1.2, mechanics.ju.se TLS 1.3 (Windows 11 only).
+    $tls = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    if ([Environment]::OSVersion.Version.Build -ge 22000) { $tls = $tls -bor [Net.SecurityProtocolType]::Tls13 }
+    [Net.ServicePointManager]::SecurityProtocol = $tls
+
     # Fetch latest release from GitHub (with timeout)
     try {
         $ProgressPreference = 'SilentlyContinue'
-        $release = Invoke-RestMethod -Uri $repoApi -TimeoutSec $TimeoutSeconds -ErrorAction Stop
-        $latestVersion = $release.tag_name
+        try {
+            $release = Invoke-RestMethod -Uri $repoApi -TimeoutSec $TimeoutSeconds -ErrorAction Stop
+            $latestVersion = $release.tag_name
+        } catch {
+            # GitHub's API limits requests per IP address; the mirror on
+            # mechanics.ju.se publishes the same version number.
+            $latestVersion = (Invoke-RestMethod -Uri "https://mechanics.ju.se/installer/version.txt" -TimeoutSec $TimeoutSeconds -ErrorAction Stop).Trim()
+        }
 
         # Update last check time
         $config.lastUpdateCheck = (Get-Date).ToString("o")
         $config | ConvertTo-Json | Set-Content $configPath -Encoding UTF8
 
-        # Compare versions (simple string comparison works for vX.Y.Z format)
-        if ($latestVersion -ne $localVersion) {
+        # Report only a newer release: main can run ahead of the latest
+        # release, and "Update Marimo" installs the release zip, so a mere
+        # difference would offer a downgrade.
+        $isNewer = $false
+        try {
+            $isNewer = [version]($latestVersion.TrimStart('v')) -gt [version]($localVersion.TrimStart('v'))
+        } catch {
+            $isNewer = $latestVersion -ne $localVersion
+        }
+        if ($isNewer) {
             Write-Host ""
             Write-Host "========================================" -ForegroundColor Yellow
             Write-Host " Update available: $localVersion -> $latestVersion" -ForegroundColor Yellow

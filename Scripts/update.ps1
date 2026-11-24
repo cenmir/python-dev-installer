@@ -16,14 +16,9 @@ function Update-MarimoPackages {
         if (Get-Command uv -ErrorAction SilentlyContinue) {
             Write-Host "Environment activated. Updating packages from '$requirementsFile'..." -ForegroundColor Cyan
             
-            # Use uv to upgrade the packages to their latest versions based on the requirements file.
-            uv pip install --upgrade -r $requirementsFile
-
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "All packages updated successfully." -ForegroundColor Green
-            } else {
-                Write-Error "The package update process finished with an error. Exit code: $LASTEXITCODE"
-            }
+            # Upgrade every package in requirements.txt to its latest version.
+            . "$PSScriptRoot\createDefaultVenvAndInstallPackages.ps1"
+            Install-Requirements -RequirementsFile $requirementsFile -Upgrade | Out-Null
         } else {
             Write-Error "'uv' command not found after attempting to activate the environment."
             Write-Host "Please ensure the 'default' virtual environment exists and is correctly configured." -ForegroundColor Yellow
