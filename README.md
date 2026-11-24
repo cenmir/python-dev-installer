@@ -74,6 +74,8 @@ The mirror is rebuilt from this repository's HEAD by `tools/build_installer.py` 
 
 Copy `Scripts/init.bat` to your project folder and double-click it. This creates a local `.venv` that VS Code will automatically detect and use.
 
+Maintainers: see [MAINTAINING.md](MAINTAINING.md) for releasing, the mirror, testing and known traps.
+
 ## Repository Files
 
 ### Root
